@@ -6,5 +6,4 @@ runs:
     - name: Run VersionMonkey
       shell: pwsh
       run: |
-        cd ${{ github.action_path }}
-        dotnet run src/VersionMonkey --configuration Release
+        dotnet run --project ${{ github.action_path }}/src/VersionMonkey/VersionMonkey.csproj --configuration Release
