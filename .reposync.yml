@@ -1,0 +1,6 @@
+exclusions:
+ - Package-README.md
+ - .github/dependabot.yml
+ - .github/workflows/virus-scan.yml
+ - src/NServiceBus.snk
+ - src/NServiceBusTests.snk
