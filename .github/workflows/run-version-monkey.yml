@@ -1,0 +1,22 @@
+name: VersionMonkey
+
+on:
+  workflow_call:
+env:
+  DOTNET_NOLOGO: true
+defaults:
+  run:
+    shell: bash
+jobs:
+  version-monkey:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+      - name: Setup .NET particular/shared-workflows/.github/workflows/code-analysis.yml
+        uses: actions/setup-dotnet@v4.1.0
+        with:
+          # Needs to match the .NET version of the VersionMonkey C# code
+          dotnet-version: 9.0.x
+      - name: Run VersionMonkey action
+        uses: Particular/version-monkey-action@main

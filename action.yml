@@ -1,0 +1,10 @@
+name: 'Particular Software Version Monkey'
+description: 'Updates dependency versions'
+runs:
+  using: "composite"
+  steps:
+    - name: Run VersionMonkey
+      shell: pwsh
+      run: |
+        cd ${{ github.action_path }}
+        dotnet run src/VersionMonkey --configuration Release
