@@ -50,7 +50,7 @@ public static class Env
         }
         else
         {
-            RepoRootPath = "/Users/david/Projects/DependencyUpdatesTest";
+            RepoRootPath = "/Users/david/Projects/Website.Backend";
         }
     }
 
