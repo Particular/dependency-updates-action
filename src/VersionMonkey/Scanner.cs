@@ -9,7 +9,7 @@ public class Scanner(string rootPath)
 {
     public async Task<Dependency[]> FindDependencies(CancellationToken cancellationToken = default)
     {
-        ConcurrentBag<Dependency> dependencies = [];
+        ConcurrentBag<WorkingDependency> dependencies = [];
 
         foreach (var searchPattern in projectFileSearchPatterns)
         {
@@ -27,15 +27,25 @@ public class Scanner(string rootPath)
                         var versionString = element.Attribute("Version")?.Value;
                         if (name is not null && versionString is not null && NuGetVersion.TryParse(versionString, out var version))
                         {
-                            dependencies.Add(new(name, version, path, UpdateType.ProjectFile));
+                            dependencies.Add(new(name, path, UpdateType.ProjectFile, version));
                         }
                     }
                 }
             }
         }
 
-        return dependencies.ToArray();
+        return dependencies
+            .GroupBy(d => d.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(g =>
+            {
+                var locations = g.Select(d => new DependencyLocation(d.FilePath, d.Type, d.Version)).ToArray();
+                return new Dependency(g.Key, locations);
+            })
+            .OrderBy(d => d.Name)
+            .ToArray();
     }
+
+    record WorkingDependency(string Name, string FilePath, UpdateType Type, NuGetVersion Version);
 
     static readonly string[] projectFileSearchPatterns = ["*.csproj", "*.props", "*.targets"];
 
@@ -47,7 +57,9 @@ public class Scanner(string rootPath)
     ];
 }
 
-public record Dependency(string Name, NuGetVersion Version, string FilePath, UpdateType Type);
+public record Dependency(string Name, DependencyLocation[] Locations);
+
+public record DependencyLocation(string FilePath, UpdateType Type, NuGetVersion Version);
 
 public enum UpdateType
 {

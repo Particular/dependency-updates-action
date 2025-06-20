@@ -33,17 +33,17 @@ public class NuGetSearcher
             .ToArray();
     }
 
-    public async Task<LatestVersion> GetLatestVersions(string packageId, CancellationToken cancellationToken = default)
+    public async Task<LatestVersion> GetLatestVersions(Dependency dependency, CancellationToken cancellationToken = default)
     {
         var metadataTasks = packageMetadataSources
             .Select(async s =>
             {
-                var results = await s.Metadata.GetMetadataAsync(packageId, includePrerelease, includeUnlisted: false, cacheContext, logger, cancellationToken);
+                var results = await s.Metadata.GetMetadataAsync(dependency.Name, includePrerelease, includeUnlisted: false, cacheContext, logger, cancellationToken);
                 var latest = results.Select(p => p.Identity.Version)
                     .OrderByDescending(v => v)
                     .FirstOrDefault();
 
-                return new SourceLatestVersion(packageId, s.Name, latest);
+                return new SourceLatestVersion(dependency.Name, s.Name, latest);
             })
             .ToArray();
 
@@ -53,7 +53,7 @@ public class NuGetSearcher
             .OrderByDescending(v => v)
             .FirstOrDefault();
 
-        return new LatestVersion(packageId, latest, sourceVersions);
+        return new LatestVersion(dependency.Name, latest, sourceVersions);
     }
 
     record MetadataSource(string Name, PackageMetadataResource Metadata);
