@@ -3,8 +3,7 @@ namespace VersionMonkey;
 public static class Env
 {
     static readonly string? RUNNER_WORKSPACE;
-    static readonly string? GITHUB_WORKSPACE;
-    static readonly string? WORKING_DIRECTORY;
+    public static string RepoRootPath { get; }
 
     static readonly string? GITHUB_REF;
     static readonly string? GITHUB_REF_NAME;
@@ -26,12 +25,10 @@ public static class Env
 
     static Env()
     {
-        WORKING_DIRECTORY = Environment.CurrentDirectory;
-
         if (bool.TryParse(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"), out var isActions) && isActions)
         {
             RUNNER_WORKSPACE = Environment.GetEnvironmentVariable("RUNNER_WORKSPACE");
-            GITHUB_WORKSPACE = Environment.GetEnvironmentVariable("GITHUB_WORKSPACE");
+            RepoRootPath = Environment.GetEnvironmentVariable("GITHUB_WORKSPACE")!;
 
             GITHUB_REF = Environment.GetEnvironmentVariable("GITHUB_REF");
             GITHUB_REF_NAME = Environment.GetEnvironmentVariable("GITHUB_REF_NAME");
@@ -51,13 +48,16 @@ public static class Env
 
             GITHUB_TOKEN = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
         }
+        else
+        {
+            RepoRootPath = "/Users/david/Projects/DependencyUpdatesTest";
+        }
     }
 
     public static void OutputEnvironment()
     {
         Console.WriteLine($"{nameof(RUNNER_WORKSPACE)} = {RUNNER_WORKSPACE}");
-        Console.WriteLine($"{nameof(GITHUB_WORKSPACE)} = {GITHUB_WORKSPACE}");
-        Console.WriteLine($"{nameof(WORKING_DIRECTORY)} = {WORKING_DIRECTORY}");
+        Console.WriteLine($"{nameof(RepoRootPath)} = {RepoRootPath}");
         Console.WriteLine($"{nameof(GITHUB_REF)} = {GITHUB_REF}");
         Console.WriteLine($"{nameof(GITHUB_REF_NAME)} = {GITHUB_REF_NAME}");
         Console.WriteLine($"{nameof(GITHUB_REF_TYPE)} = {GITHUB_REF_TYPE}");
