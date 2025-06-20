@@ -1,0 +1,68 @@
+namespace VersionMonkey;
+
+public static class Env
+{
+    static readonly string? RUNNER_WORKSPACE;
+    static readonly string? GITHUB_WORKSPACE;
+    static readonly string? WORKING_DIRECTORY;
+
+    static readonly string? GITHUB_REF;
+    static readonly string? GITHUB_REF_NAME;
+    static readonly string? GITHUB_REF_TYPE;
+    static readonly string? GITHUB_REPOSITORY_OWNER;
+    static readonly string? GITHUB_REPOSITORY;
+    static readonly long GITHUB_REPOSITORY_OWNER_ID;
+    static readonly long GITHUB_REPOSITORY_ID;
+
+    static readonly string? GITHUB_EVENT_NAME;
+    static readonly string? GITHUB_OUTPUT;
+    static readonly string? GITHUB_STEP_SUMMARY;
+    static readonly string? GITHUB_STATE;
+    static readonly string? GITHUB_ENV;
+
+    static Env()
+    {
+        WORKING_DIRECTORY = Environment.CurrentDirectory;
+
+        if (bool.TryParse(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"), out var isActions) && isActions)
+        {
+            RUNNER_WORKSPACE = Environment.GetEnvironmentVariable("RUNNER_WORKSPACE");
+            GITHUB_WORKSPACE = Environment.GetEnvironmentVariable("GITHUB_WORKSPACE");
+
+            GITHUB_REF = Environment.GetEnvironmentVariable("GITHUB_REF");
+            GITHUB_REF_NAME = Environment.GetEnvironmentVariable("GITHUB_REF_NAME");
+            GITHUB_REF_TYPE = Environment.GetEnvironmentVariable("GITHUB_REF_TYPE");
+            GITHUB_REPOSITORY_OWNER = Environment.GetEnvironmentVariable("GITHUB_REPOSITORY_OWNER");
+            GITHUB_REPOSITORY = Environment.GetEnvironmentVariable("GITHUB_REPOSITORY");
+
+            _ = long.TryParse(Environment.GetEnvironmentVariable("GITHUB_REPOSITORY_OWNER_ID"), out GITHUB_REPOSITORY_OWNER_ID);
+            _ = long.TryParse(Environment.GetEnvironmentVariable("GITHUB_REPOSITORY_ID"), out GITHUB_REPOSITORY_ID);
+
+            GITHUB_EVENT_NAME = Environment.GetEnvironmentVariable("GITHUB_EVENT_NAME");
+            GITHUB_OUTPUT = Environment.GetEnvironmentVariable("GITHUB_OUTPUT");
+            GITHUB_STEP_SUMMARY = Environment.GetEnvironmentVariable("GITHUB_STEP_SUMMARY");
+            GITHUB_STATE = Environment.GetEnvironmentVariable("GITHUB_STATE");
+            GITHUB_ENV = Environment.GetEnvironmentVariable("GITHUB_ENV");
+        }
+    }
+
+    public static void OutputEnvironment()
+    {
+        Console.WriteLine($"{nameof(RUNNER_WORKSPACE)} = {RUNNER_WORKSPACE}");
+        Console.WriteLine($"{nameof(GITHUB_WORKSPACE)} = {GITHUB_WORKSPACE}");
+        Console.WriteLine($"{nameof(WORKING_DIRECTORY)} = {WORKING_DIRECTORY}");
+        Console.WriteLine($"{nameof(GITHUB_REF)} = {GITHUB_REF}");
+        Console.WriteLine($"{nameof(GITHUB_REF_NAME)} = {GITHUB_REF_NAME}");
+        Console.WriteLine($"{nameof(GITHUB_REF_TYPE)} = {GITHUB_REF_TYPE}");
+        Console.WriteLine($"{nameof(GITHUB_REPOSITORY_OWNER)} = {GITHUB_REPOSITORY_OWNER}");
+        Console.WriteLine($"{nameof(GITHUB_REPOSITORY)} = {GITHUB_REPOSITORY}");
+        Console.WriteLine($"{nameof(GITHUB_REPOSITORY_OWNER_ID)} = {GITHUB_REPOSITORY_OWNER_ID}");
+        Console.WriteLine($"{nameof(GITHUB_REPOSITORY_ID)} = {GITHUB_REPOSITORY_ID}");
+        Console.WriteLine($"{nameof(GITHUB_EVENT_NAME)} = {GITHUB_EVENT_NAME}");
+        Console.WriteLine($"{nameof(GITHUB_REPOSITORY)} = {GITHUB_REPOSITORY}");
+        Console.WriteLine($"{nameof(GITHUB_OUTPUT)} = {GITHUB_OUTPUT}");
+        Console.WriteLine($"{nameof(GITHUB_STEP_SUMMARY)} = {GITHUB_STEP_SUMMARY}");
+        Console.WriteLine($"{nameof(GITHUB_STATE)} = {GITHUB_STATE}");
+        Console.WriteLine($"{nameof(GITHUB_ENV)} = {GITHUB_ENV}");
+    }
+}
