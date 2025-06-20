@@ -19,6 +19,10 @@ public static class Env
     static readonly string? GITHUB_STEP_SUMMARY;
     static readonly string? GITHUB_STATE;
     static readonly string? GITHUB_ENV;
+    // Should be a JSON file with same structures as webhook events
+    static readonly string? GITHUB_EVENT_PATH;
+
+    static readonly string? GITHUB_TOKEN;
 
     static Env()
     {
@@ -43,6 +47,9 @@ public static class Env
             GITHUB_STEP_SUMMARY = Environment.GetEnvironmentVariable("GITHUB_STEP_SUMMARY");
             GITHUB_STATE = Environment.GetEnvironmentVariable("GITHUB_STATE");
             GITHUB_ENV = Environment.GetEnvironmentVariable("GITHUB_ENV");
+            GITHUB_EVENT_PATH = Environment.GetEnvironmentVariable("GITHUB_EVENT_PATH");
+
+            GITHUB_TOKEN = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
         }
     }
 
@@ -64,5 +71,9 @@ public static class Env
         Console.WriteLine($"{nameof(GITHUB_STEP_SUMMARY)} = {GITHUB_STEP_SUMMARY}");
         Console.WriteLine($"{nameof(GITHUB_STATE)} = {GITHUB_STATE}");
         Console.WriteLine($"{nameof(GITHUB_ENV)} = {GITHUB_ENV}");
+        Console.WriteLine($"{nameof(GITHUB_EVENT_PATH)} = {GITHUB_EVENT_PATH}");
+
+        var tokenDisplay = GITHUB_TOKEN is not null ? $"(token of length {GITHUB_TOKEN.Length})" : "null";
+        Console.WriteLine($"{nameof(GITHUB_TOKEN)} = {tokenDisplay}");
     }
 }

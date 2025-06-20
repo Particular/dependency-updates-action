@@ -1,5 +1,4 @@
 name: VersionMonkey
-
 on:
   workflow_call:
 env:
@@ -8,7 +7,7 @@ defaults:
   run:
     shell: bash
 jobs:
-  version-monkey:
+  versions:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -20,3 +19,5 @@ jobs:
           dotnet-version: 9.0.x
       - name: Run VersionMonkey action
         uses: Particular/version-monkey-action@main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
