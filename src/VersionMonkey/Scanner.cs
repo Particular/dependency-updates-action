@@ -7,10 +7,10 @@ using NuGet.Versioning;
 
 public class Scanner(string rootPath)
 {
-    ConcurrentBag<Dependency> dependencies = [];
-
-    public async Task FindDependencies(CancellationToken cancellationToken = default)
+    public async Task<Dependency[]> FindDependencies(CancellationToken cancellationToken = default)
     {
+        ConcurrentBag<Dependency> dependencies = [];
+
         foreach (var searchPattern in projectFileSearchPatterns)
         {
             foreach (var path in Directory.GetFiles(rootPath, searchPattern, SearchOption.AllDirectories))
@@ -24,8 +24,8 @@ public class Scanner(string rootPath)
                     foreach (var element in elements)
                     {
                         var name = element.Attribute("Include")?.Value;
-                        var version = element.Attribute("Version")?.Value;
-                        if (name is not null && version is not null && SemanticVersion.TryParse(version, out _))
+                        var versionString = element.Attribute("Version")?.Value;
+                        if (name is not null && versionString is not null && SemanticVersion.TryParse(versionString, out var version))
                         {
                             dependencies.Add(new(name, version, path, UpdateType.ProjectFile));
                         }
@@ -33,14 +33,8 @@ public class Scanner(string rootPath)
                 }
             }
         }
-    }
 
-    public void Output()
-    {
-        foreach (var d in dependencies)
-        {
-            Console.WriteLine($"{d.Type}:{d.FilePath} -> {d.Name} {d.Version}");
-        }
+        return dependencies.ToArray();
     }
 
     static readonly string[] projectFileSearchPatterns = ["*.csproj", "*.props", "*.targets"];
@@ -53,7 +47,7 @@ public class Scanner(string rootPath)
     ];
 }
 
-public record Dependency(string Name, string Version, string FilePath, UpdateType Type);
+public record Dependency(string Name, SemanticVersion Version, string FilePath, UpdateType Type);
 
 public enum UpdateType
 {
