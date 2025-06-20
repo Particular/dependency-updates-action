@@ -25,7 +25,7 @@ public class Scanner(string rootPath)
                     {
                         var name = element.Attribute("Include")?.Value;
                         var versionString = element.Attribute("Version")?.Value;
-                        if (name is not null && versionString is not null && SemanticVersion.TryParse(versionString, out var version))
+                        if (name is not null && versionString is not null && NuGetVersion.TryParse(versionString, out var version))
                         {
                             dependencies.Add(new(name, version, path, UpdateType.ProjectFile));
                         }
@@ -47,7 +47,7 @@ public class Scanner(string rootPath)
     ];
 }
 
-public record Dependency(string Name, SemanticVersion Version, string FilePath, UpdateType Type);
+public record Dependency(string Name, NuGetVersion Version, string FilePath, UpdateType Type);
 
 public enum UpdateType
 {
