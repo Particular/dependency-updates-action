@@ -19,12 +19,9 @@ var nugetSearcher = new NuGetSearcher(Env.RepoRootPath);
 Console.WriteLine("Looking up latest versions:");
 foreach (var dep in dependencies)
 {
-    Console.WriteLine($" - {dep.Name}:");
-    var latestVersions = await nugetSearcher.GetLatestVersions(dep);
-    foreach (var v in latestVersions.SourceVersions)
-    {
-        var latestString = v.Latest is not null ? v.Latest.ToString() : "<not found>";
-        Console.WriteLine($"   - {v.SourceName}: {latestString}");
-    }
+    var latestVersions = await nugetSearcher.GetUpgradeVersions(dep);
+
+    var versionsString = string.Join(", ", latestVersions.PotentialVersions.Select(v => v.ToString()));
+    Console.WriteLine($" - {dep.Name}: Found [{versionsString}]");
 }
 

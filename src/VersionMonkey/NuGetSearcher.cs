@@ -9,12 +9,10 @@ public class NuGetSearcher
 {
     readonly MetadataSource[] packageMetadataSources;
     readonly SourceCacheContext cacheContext;
-    readonly bool includePrerelease;
     readonly ILogger logger;
 
-    public NuGetSearcher(string rootDirectory, bool includePrerelease = false, ILogger? logger = null)
+    public NuGetSearcher(string rootDirectory, ILogger? logger = null)
     {
-        this.includePrerelease = includePrerelease;
         this.logger = logger ?? NullLogger.Instance;
         cacheContext = new SourceCacheContext
         {
@@ -33,31 +31,46 @@ public class NuGetSearcher
             .ToArray();
     }
 
-    public async Task<LatestVersion> GetLatestVersions(Dependency dependency, CancellationToken cancellationToken = default)
+    public async Task<NuGetResults> GetUpgradeVersions(Dependency dependency, CancellationToken cancellationToken = default)
     {
-        var metadataTasks = packageMetadataSources
+        var allVersions = dependency.Locations
+            .Select(loc => loc.Version)
+            .Distinct()
+            .OrderBy(v => v)
+            .ToArray();
+
+        var highest = allVersions.Last();
+        // If two projects disagree, and the lower one is prerelease, it should get updated to the higher RTM anyway
+        var includePrerelease = highest.IsPrerelease;
+
+        var tasks = packageMetadataSources
             .Select(async s =>
             {
                 var results = await s.Metadata.GetMetadataAsync(dependency.Name, includePrerelease, includeUnlisted: false, cacheContext, logger, cancellationToken);
-                var latest = results.Select(p => p.Identity.Version)
-                    .OrderByDescending(v => v)
-                    .FirstOrDefault();
 
-                return new SourceLatestVersion(dependency.Name, s.Name, latest);
+                return new
+                {
+                    Source = s.Name,
+                    UpgradeVersions = results.Select(p => p.Identity.Version)
+                        .Where(v => v > highest)
+                        .ToArray()
+                };
             })
             .ToArray();
 
-        var sourceVersions = await Task.WhenAll(metadataTasks);
-        var latest = sourceVersions.Select(v => v.Latest)
-            .Where(v => v is not null)
-            .OrderByDescending(v => v)
-            .FirstOrDefault();
+        var sourceResults = await Task.WhenAll(tasks);
 
-        return new LatestVersion(dependency.Name, latest, sourceVersions);
+        var eligibleVersions = sourceResults.SelectMany(r => r.UpgradeVersions)
+            .Distinct()
+            .OrderBy(v => v)
+            .ToArray();
+
+        var latestVersion = eligibleVersions.LastOrDefault();
+
+        return new NuGetResults(dependency, latestVersion, eligibleVersions);
     }
 
     record MetadataSource(string Name, PackageMetadataResource Metadata);
 }
 
-public record LatestVersion(string PackageId, NuGetVersion? Latest, SourceLatestVersion[] SourceVersions);
-public record SourceLatestVersion(string PackageId, string SourceName, NuGetVersion? Latest);
+public record NuGetResults(Dependency Dependency, NuGetVersion? Latest, NuGetVersion[] PotentialVersions);
