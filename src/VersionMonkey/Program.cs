@@ -24,4 +24,3 @@ foreach (var dep in dependencies)
     var versionsString = string.Join(", ", latestVersions.PotentialVersions.Select(v => v.ToString()));
     Console.WriteLine($" - {dep.Name}: Found [{versionsString}]");
 }
-

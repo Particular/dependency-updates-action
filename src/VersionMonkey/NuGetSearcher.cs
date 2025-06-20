@@ -43,7 +43,7 @@ public class NuGetSearcher
         // If two projects disagree, and the lower one is prerelease, it should get updated to the higher RTM anyway
         var includePrerelease = highest.IsPrerelease;
 
-        var tasks = packageMetadataSources
+        var sourceResults = await packageMetadataSources
             .Select(async s =>
             {
                 var results = await s.Metadata.GetMetadataAsync(dependency.Name, includePrerelease, includeUnlisted: false, cacheContext, logger, cancellationToken);
@@ -56,9 +56,7 @@ public class NuGetSearcher
                         .ToArray()
                 };
             })
-            .ToArray();
-
-        var sourceResults = await Task.WhenAll(tasks);
+            .WhenAllToArray();
 
         var eligibleVersions = sourceResults.SelectMany(r => r.UpgradeVersions)
             .Distinct()
