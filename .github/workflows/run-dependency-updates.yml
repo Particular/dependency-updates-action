@@ -1,6 +1,11 @@
 name: DependencyUpdates
 on:
   workflow_call:
+    inputs:
+      command:
+        type: string
+        description: The update for the dependency updater application to perform
+        required: true
 env:
   DOTNET_NOLOGO: true
 defaults:
@@ -21,3 +26,5 @@ jobs:
         uses: Particular/dependency-updates-action@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          APP_COMMAND: ${{ inputs.command }}

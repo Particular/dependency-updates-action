@@ -22,6 +22,8 @@ public static class Env
     static readonly string? GITHUB_EVENT_PATH;
 
     static readonly string? GITHUB_TOKEN;
+    static readonly string? DEFAULT_BRANCH;
+    static readonly string? APP_COMMAND;
 
     static Env()
     {
@@ -47,6 +49,8 @@ public static class Env
             GITHUB_EVENT_PATH = Environment.GetEnvironmentVariable("GITHUB_EVENT_PATH");
 
             GITHUB_TOKEN = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
+            DEFAULT_BRANCH = Environment.GetEnvironmentVariable("DEFAULT_BRANCH");
+            APP_COMMAND = Environment.GetEnvironmentVariable("APP_COMMAND");
         }
         else
         {
@@ -72,6 +76,8 @@ public static class Env
         Console.WriteLine($"{nameof(GITHUB_STATE)} = {GITHUB_STATE}");
         Console.WriteLine($"{nameof(GITHUB_ENV)} = {GITHUB_ENV}");
         Console.WriteLine($"{nameof(GITHUB_EVENT_PATH)} = {GITHUB_EVENT_PATH}");
+        Console.WriteLine($"{nameof(DEFAULT_BRANCH)} = {DEFAULT_BRANCH}");
+        Console.WriteLine($"{nameof(APP_COMMAND)} = {APP_COMMAND}");
 
         var tokenDisplay = GITHUB_TOKEN is not null ? $"(token of length {GITHUB_TOKEN.Length})" : "null";
         Console.WriteLine($"{nameof(GITHUB_TOKEN)} = {tokenDisplay}");
