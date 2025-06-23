@@ -1,9 +1,9 @@
-name: 'Particular Software Version Monkey'
+name: 'Particular Software Dependency Updates'
 description: 'Updates dependency versions'
 runs:
   using: "composite"
   steps:
-    - name: Run VersionMonkey
+    - name: Run DependencyUpdates
       shell: pwsh
       run: |
-        dotnet run --project ${{ github.action_path }}/src/VersionMonkey/VersionMonkey.csproj --configuration Release
+        dotnet run --project ${{ github.action_path }}/src/DependencyUpdates/DependencyUpdates.csproj --configuration Release

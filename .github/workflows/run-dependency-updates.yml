@@ -1,4 +1,4 @@
-name: VersionMonkey
+name: DependencyUpdates
 on:
   workflow_call:
 env:
@@ -15,9 +15,9 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4.1.0
         with:
-          # Needs to match the .NET version of the VersionMonkey C# code
+          # Needs to match the .NET version of the DependencyUpdates C# code
           dotnet-version: 9.0.x
-      - name: Run VersionMonkey action
-        uses: Particular/version-monkey-action@main
+      - name: Run action
+        uses: Particular/dependency-updates-action@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

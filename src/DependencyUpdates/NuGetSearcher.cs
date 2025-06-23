@@ -1,4 +1,4 @@
-namespace VersionMonkey;
+namespace DependencyUpdates;
 
 using NuGet.Common;
 using NuGet.Configuration;

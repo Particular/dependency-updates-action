@@ -1,4 +1,4 @@
-﻿using VersionMonkey;
+﻿using DependencyUpdates;
 
 Env.OutputEnvironment();
 

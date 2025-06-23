@@ -1,4 +1,4 @@
-namespace VersionMonkey;
+namespace DependencyUpdates;
 
 public static class Env
 {

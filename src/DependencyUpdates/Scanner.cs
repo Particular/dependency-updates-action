@@ -1,4 +1,4 @@
-namespace VersionMonkey;
+namespace DependencyUpdates;
 
 using System.Collections.Concurrent;
 using System.Xml.Linq;
