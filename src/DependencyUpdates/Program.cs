@@ -4,6 +4,9 @@ Env.OutputEnvironment();
 
 switch (Env.AppCommand)
 {
+#if DEBUG
+    case null:
+#endif
     case "update":
         await UpdateCommand.Run();
         break;

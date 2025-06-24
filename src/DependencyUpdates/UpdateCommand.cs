@@ -18,6 +18,8 @@ public static class UpdateCommand
         }
 
         var nugetSearcher = new NuGetSearcher(Env.RepoRootPath);
+        var upgradeLogic = new UpgradeLogic(Env.RepositoryName, Env.IgnoreConditionsPath);
+        var recommendations = new List<UpgradeRecommendation>();
         Console.WriteLine("Looking up latest versions:");
         foreach (var dep in dependencies)
         {
@@ -25,6 +27,17 @@ public static class UpdateCommand
 
             var versionsString = string.Join(", ", latestVersions.PotentialVersions.Select(v => v.ToString()));
             Console.WriteLine($" - {dep.Name}: Found [{versionsString}]");
+
+            recommendations.Add(upgradeLogic.GetRecommendation(latestVersions));
         }
+
+        upgradeLogic.OutputIgnoreConditions();
+
+        Console.WriteLine("Upgrade recommendations:");
+        foreach (var recommendation in recommendations)
+        {
+            Console.WriteLine($"  - {recommendation}");
+        }
+
     }
 }

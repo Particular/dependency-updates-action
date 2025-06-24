@@ -1,10 +1,14 @@
 namespace DependencyUpdates;
 
+using System.Reflection;
+
 public static class Env
 {
     static readonly string? RUNNER_WORKSPACE;
     public static string RepoRootPath { get; }
     public static string? AppCommand { get; }
+    public static string IgnoreConditionsPath { get; }
+    public static string RepositoryName { get; }
 
     static readonly string? GITHUB_REF;
     static readonly string? GITHUB_REF_NAME;
@@ -32,12 +36,15 @@ public static class Env
             AppCommand = Environment.GetEnvironmentVariable("APP_COMMAND");
             RUNNER_WORKSPACE = Environment.GetEnvironmentVariable("RUNNER_WORKSPACE");
             RepoRootPath = Environment.GetEnvironmentVariable("GITHUB_WORKSPACE")!;
+            IgnoreConditionsPath = Environment.GetEnvironmentVariable("IGNORE_CONDITIONS_PATH")!;
 
             GITHUB_REF = Environment.GetEnvironmentVariable("GITHUB_REF");
             GITHUB_REF_NAME = Environment.GetEnvironmentVariable("GITHUB_REF_NAME");
             GITHUB_REF_TYPE = Environment.GetEnvironmentVariable("GITHUB_REF_TYPE");
             GITHUB_REPOSITORY_OWNER = Environment.GetEnvironmentVariable("GITHUB_REPOSITORY_OWNER");
             GITHUB_REPOSITORY = Environment.GetEnvironmentVariable("GITHUB_REPOSITORY");
+
+            RepositoryName = GITHUB_REPOSITORY!.Split('/').Last();
 
             _ = long.TryParse(Environment.GetEnvironmentVariable("GITHUB_REPOSITORY_OWNER_ID"), out GITHUB_REPOSITORY_OWNER_ID);
             _ = long.TryParse(Environment.GetEnvironmentVariable("GITHUB_REPOSITORY_ID"), out GITHUB_REPOSITORY_ID);
@@ -55,6 +62,8 @@ public static class Env
         else
         {
             RepoRootPath = "/Users/david/Projects/Website.Backend";
+            RepositoryName = Path.GetFileName(RepoRootPath);
+            IgnoreConditionsPath = Path.GetFullPath(Path.Combine(Assembly.GetExecutingAssembly().Location, "..", "..", "..", "..", "..", "..", "ignore-conditions"));
         }
     }
 
@@ -62,6 +71,7 @@ public static class Env
     {
         Console.WriteLine($"{nameof(AppCommand)} = {AppCommand}");
         Console.WriteLine($"{nameof(RepoRootPath)} = {RepoRootPath}");
+        Console.WriteLine($"{nameof(IgnoreConditionsPath)} = {IgnoreConditionsPath}");
         Console.WriteLine($"{nameof(RUNNER_WORKSPACE)} = {RUNNER_WORKSPACE}");
         Console.WriteLine($"{nameof(GITHUB_REF)} = {GITHUB_REF}");
         Console.WriteLine($"{nameof(GITHUB_REF_NAME)} = {GITHUB_REF_NAME}");
