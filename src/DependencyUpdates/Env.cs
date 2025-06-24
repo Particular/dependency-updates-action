@@ -4,6 +4,7 @@ public static class Env
 {
     static readonly string? RUNNER_WORKSPACE;
     public static string RepoRootPath { get; }
+    public static string? AppCommand { get; }
 
     static readonly string? GITHUB_REF;
     static readonly string? GITHUB_REF_NAME;
@@ -23,12 +24,12 @@ public static class Env
 
     static readonly string? GITHUB_TOKEN;
     static readonly string? DEFAULT_BRANCH;
-    static readonly string? APP_COMMAND;
 
     static Env()
     {
         if (bool.TryParse(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"), out var isActions) && isActions)
         {
+            AppCommand = Environment.GetEnvironmentVariable("APP_COMMAND");
             RUNNER_WORKSPACE = Environment.GetEnvironmentVariable("RUNNER_WORKSPACE");
             RepoRootPath = Environment.GetEnvironmentVariable("GITHUB_WORKSPACE")!;
 
@@ -50,7 +51,6 @@ public static class Env
 
             GITHUB_TOKEN = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
             DEFAULT_BRANCH = Environment.GetEnvironmentVariable("DEFAULT_BRANCH");
-            APP_COMMAND = Environment.GetEnvironmentVariable("APP_COMMAND");
         }
         else
         {
@@ -60,8 +60,9 @@ public static class Env
 
     public static void OutputEnvironment()
     {
-        Console.WriteLine($"{nameof(RUNNER_WORKSPACE)} = {RUNNER_WORKSPACE}");
+        Console.WriteLine($"{nameof(AppCommand)} = {AppCommand}");
         Console.WriteLine($"{nameof(RepoRootPath)} = {RepoRootPath}");
+        Console.WriteLine($"{nameof(RUNNER_WORKSPACE)} = {RUNNER_WORKSPACE}");
         Console.WriteLine($"{nameof(GITHUB_REF)} = {GITHUB_REF}");
         Console.WriteLine($"{nameof(GITHUB_REF_NAME)} = {GITHUB_REF_NAME}");
         Console.WriteLine($"{nameof(GITHUB_REF_TYPE)} = {GITHUB_REF_TYPE}");
@@ -77,7 +78,6 @@ public static class Env
         Console.WriteLine($"{nameof(GITHUB_ENV)} = {GITHUB_ENV}");
         Console.WriteLine($"{nameof(GITHUB_EVENT_PATH)} = {GITHUB_EVENT_PATH}");
         Console.WriteLine($"{nameof(DEFAULT_BRANCH)} = {DEFAULT_BRANCH}");
-        Console.WriteLine($"{nameof(APP_COMMAND)} = {APP_COMMAND}");
 
         var tokenDisplay = GITHUB_TOKEN is not null ? $"(token of length {GITHUB_TOKEN.Length})" : "null";
         Console.WriteLine($"{nameof(GITHUB_TOKEN)} = {tokenDisplay}");
