@@ -11,14 +11,14 @@ public class Scanner(string rootPath)
     {
         ConcurrentBag<WorkingDependency> dependencies = [];
 
-        foreach (var searchPattern in projectFileSearchPatterns)
+        foreach (var searchPattern in ProjectFileConstants.ProjectFileSearchPatterns)
         {
             foreach (var path in Directory.GetFiles(rootPath, searchPattern, SearchOption.AllDirectories))
             {
                 using var reader = new StreamReader(path);
                 var xdoc = await XDocument.LoadAsync(reader, LoadOptions.None, cancellationToken);
 
-                foreach (var xpath in packageElementXPaths)
+                foreach (var xpath in ProjectFileConstants.PackageElementXPaths)
                 {
                     var elements = xdoc.XPathSelectElements(xpath);
                     foreach (var element in elements)
@@ -46,15 +46,6 @@ public class Scanner(string rootPath)
     }
 
     record WorkingDependency(string Name, string FilePath, UpdateType Type, NuGetVersion Version);
-
-    static readonly string[] projectFileSearchPatterns = ["*.csproj", "*.props", "*.targets"];
-
-    static readonly string[] packageElementXPaths =
-    [
-        "//Project/ItemGroup/PackageReference",
-        "//Project/ItemGroup/GlobalPackageReference",
-        "//Project/ItemGroup/PackageVersion"
-    ];
 }
 
 public record Dependency(string Name, DependencyLocation[] Locations);

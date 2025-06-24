@@ -39,5 +39,7 @@ public static class UpdateCommand
             Console.WriteLine($"  - {recommendation}");
         }
 
+        var updater = new Updater(recommendations);
+        await updater.Run(cancellationToken);
     }
 }
