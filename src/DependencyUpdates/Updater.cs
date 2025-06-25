@@ -1,5 +1,7 @@
 namespace DependencyUpdates;
 
+using System.Security.Cryptography;
+using System.Text;
 using System.Xml.XPath;
 using LibGit2Sharp;
 using NuGet.Versioning;
@@ -8,6 +10,8 @@ public class Updater(IEnumerable<UpgradeRecommendation> recommendations)
 {
     public async Task Run(CancellationToken cancellationToken = default)
     {
+        Console.WriteLine("Begin Updater");
+
         var updateGroups = recommendations
             .Where(r => r.RecommendedVersion is not null)
             .Select(r => new
@@ -18,29 +22,97 @@ public class Updater(IEnumerable<UpgradeRecommendation> recommendations)
             .GroupBy(g => g.Group)
             .ToDictionary(g => g.Key, g => g.Select(x => x.Update).ToArray());
 
+        Console.WriteLine($"{updateGroups.Count} update groups");
+
         using var repo = new Repository(Env.RepoRootPath);
-        var resetBranchName = "reset" + Guid.NewGuid().ToString("n")[..8];
-        var resetBranch = repo.CreateBranch(resetBranchName);
+        var resetBranch = repo.Head.FriendlyName;
+        Console.WriteLine($"Base branch is `{resetBranch}`");
+        Console.WriteLine("Found branches:");
+        foreach (var branch in repo.Branches)
+        {
+            var localPart = $" - {branch.FriendlyName} = {branch.CanonicalName}";
+            var remotePart = branch.IsTracking ? $" => {branch.RemoteName}:{branch.UpstreamBranchCanonicalName}" : "";
+            Console.WriteLine(localPart + remotePart);
+        }
 
         try
         {
             foreach (var group in updateGroups)
             {
                 Console.WriteLine($"Update for {group.Key.GroupName}:");
+                var branchName = $"pbot/{group.Key.GroupCodeName}/{UniqueIdFor(group.Value)}";
 
-                repo.Reset(ResetMode.Hard, resetBranch.Tip);
+                _ = Commands.Checkout(repo, resetBranch);
+                var branch = repo.Branches.Add(branchName, resetBranch);
+                _ = Commands.Checkout(repo, branch);
 
                 foreach (var update in group.Value)
                 {
                     await ApplyUpdate(update, cancellationToken);
                 }
+
+                Commands.Stage(repo, "*");
+                var message = GetCommitMessage(group.Key, group.Value);
+                var signature = new Signature(Committer, DateTimeOffset.UtcNow);
+                var commit = repo.Commit(message, signature, signature);
+                _ = commit;
             }
         }
         finally
         {
-            repo.Reset(ResetMode.Hard, resetBranch.Tip);
-            repo.Branches.Remove(resetBranch);
+            _ = Commands.Checkout(repo, resetBranch);
         }
+    }
+
+    readonly Identity Committer = new("internalautomation[bot]", "85681268+internalautomation[bot]@users.noreply.github.com");
+
+    static string UniqueIdFor(UpgradeRecommendation[] upgrades)
+    {
+        if (upgrades.Length == 1)
+        {
+            return upgrades[0].RecommendedVersion!.ToString();
+        }
+
+        var asStrings = upgrades
+            .OrderBy(u => u.Dependency.Name)
+            .Select(u => $"{u.Dependency.Name.ToLowerInvariant()}:{u.RecommendedVersion}");
+        var fullString = string.Join(",", asStrings);
+        var asBytes = Encoding.UTF8.GetBytes(fullString);
+
+        using var sha = SHA256.Create();
+
+        var hash = sha.ComputeHash(asBytes);
+
+        var hashBuilder = new StringBuilder(16);
+        for (var i = 0; i < 8; i++)
+        {
+            hashBuilder.Append(hash[i].ToString("x2"));
+        }
+        return hashBuilder.ToString();
+    }
+
+    string GetCommitMessage(GroupingData group, UpgradeRecommendation[] upgrades)
+    {
+        if (group.IsGroup)
+        {
+            return $"Bump {group.TitleName} with {upgrades.Length} updates";
+        }
+
+        var existingVersions = upgrades
+            .SelectMany(u => u.Dependency.Locations)
+            .Select(loc => loc.Version)
+            .Distinct()
+            .OrderBy(v => v)
+            .Select(v => v.ToString())
+            .ToArray();
+
+        if (existingVersions.Length == 1)
+        {
+            return $"Bump {group.TitleName} from {existingVersions[0]} to {upgrades[0].RecommendedVersion}";
+        }
+
+        var combinedExistingVersions = string.Join(", ", existingVersions);
+        return $"Bump {group.TitleName} from ({combinedExistingVersions}) to {upgrades[0].RecommendedVersion}";
     }
 
     async Task ApplyUpdate(UpgradeRecommendation update, CancellationToken cancellationToken)

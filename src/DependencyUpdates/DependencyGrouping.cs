@@ -8,10 +8,10 @@ public static class DependencyGrouping
     {
         if (IsPartOfGroup(dependencyName, out var groupName))
         {
-            return new GroupingData(groupName, $"the {groupName} group");
+            return new GroupingData(groupName, $"the {groupName} group", true);
         }
 
-        return new GroupingData(dependencyName, dependencyName);
+        return new GroupingData(dependencyName, dependencyName, false);
     }
 
     static bool IsPartOfGroup(string dependencyName, [NotNullWhen(true)] out string? groupName)
@@ -42,7 +42,7 @@ public static class DependencyGrouping
     ], StringComparer.OrdinalIgnoreCase);
 }
 
-public record GroupingData(string GroupName, string TitleName)
+public record GroupingData(string GroupName, string TitleName, bool IsGroup)
 {
     public string GroupCodeName => GroupName.ToLowerInvariant();
 }
