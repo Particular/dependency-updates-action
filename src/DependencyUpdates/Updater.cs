@@ -33,6 +33,13 @@ public class Updater(IEnumerable<UpgradeRecommendation> recommendations)
             var localPart = $" - {branch.FriendlyName} = {branch.CanonicalName}";
             var remotePart = branch.IsTracking ? $" => {branch.RemoteName}:{branch.UpstreamBranchCanonicalName}" : "";
             Console.WriteLine(localPart + remotePart);
+            Console.WriteLine($"    - {nameof(branch.CanonicalName)} = {branch.CanonicalName}");
+            Console.WriteLine($"    - {nameof(branch.FriendlyName)} = {branch.FriendlyName}");
+            Console.WriteLine($"    - {nameof(branch.RemoteName)} = {branch.RemoteName}");
+            Console.WriteLine($"    - {nameof(branch.UpstreamBranchCanonicalName)} = {branch.UpstreamBranchCanonicalName}");
+            Console.WriteLine($"    - {nameof(branch.IsCurrentRepositoryHead)} = {branch.IsCurrentRepositoryHead}");
+            Console.WriteLine($"    - {nameof(branch.IsRemote)} = {branch.IsRemote}");
+            Console.WriteLine($"    - {nameof(branch.IsTracking)} = {branch.IsTracking}");
         }
 
         try
