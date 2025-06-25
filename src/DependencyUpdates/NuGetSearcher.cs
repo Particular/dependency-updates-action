@@ -33,6 +33,12 @@ public class NuGetSearcher
 
     public async Task<NuGetResults> GetUpgradeVersions(Dependency dependency, CancellationToken cancellationToken = default)
     {
+        if (IgnoreDependencies.ShouldIgnore(dependency.Name, out var reason))
+        {
+            Console.WriteLine("Skipping dependency {dependency.Name}: {reason}");
+            return new NuGetResults(dependency, null, []);
+        }
+
         var allVersions = dependency.Locations
             .Select(loc => loc.Version)
             .Distinct()

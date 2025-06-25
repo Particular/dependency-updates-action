@@ -4,32 +4,46 @@ using System.Text;
 using System.Xml;
 using System.Xml.Linq;
 using System.Xml.XPath;
+using LibGit2Sharp;
 using NuGet.Versioning;
 
-public class Updater
+public class Updater(IEnumerable<UpgradeRecommendation> recommendations)
 {
-    UpgradeRecommendation[] updates;
-
-    public Updater(IEnumerable<UpgradeRecommendation> recommendations)
-    {
-        updates = recommendations
-            .Where(r => r.RecommendedVersion is not null)
-            .ToArray();
-    }
-
     public async Task Run(CancellationToken cancellationToken = default)
     {
-        foreach (var update in updates)
-        {
-            await ResetRepo(cancellationToken);
-            await ApplyUpdate(update, cancellationToken);
-        }
-    }
+        var updateGroups = recommendations
+            .Where(r => r.RecommendedVersion is not null)
+            .Select(r => new
+            {
+                Group = DependencyGrouping.GetGroupingData(r.Dependency.Name),
+                Update = r
+            })
+            .GroupBy(g => g.Group)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.Update).ToArray());
 
-    async Task ResetRepo(CancellationToken cancellationToken)
-    {
-        await Task.Yield();
-        await Task.Yield();
+        using var repo = new Repository(Env.RepoRootPath);
+        var resetBranchName = "reset" + Guid.NewGuid().ToString("n")[..8];
+        var resetBranch = repo.CreateBranch(resetBranchName);
+
+        try
+        {
+            foreach (var group in updateGroups)
+            {
+                Console.WriteLine($"Update for {group.Key.GroupName}:");
+
+                repo.Reset(ResetMode.Hard, resetBranch.Tip);
+
+                foreach (var update in group.Value)
+                {
+                    await ApplyUpdate(update, cancellationToken);
+                }
+            }
+        }
+        finally
+        {
+            repo.Reset(ResetMode.Hard, resetBranch.Tip);
+            repo.Branches.Remove(resetBranch);
+        }
     }
 
     async Task ApplyUpdate(UpgradeRecommendation update, CancellationToken cancellationToken)
