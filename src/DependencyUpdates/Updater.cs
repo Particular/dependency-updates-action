@@ -1,8 +1,5 @@
 namespace DependencyUpdates;
 
-using System.Text;
-using System.Xml;
-using System.Xml.Linq;
 using System.Xml.XPath;
 using LibGit2Sharp;
 using NuGet.Versioning;
@@ -68,15 +65,11 @@ public class Updater(IEnumerable<UpgradeRecommendation> recommendations)
 
     async Task UpdateProjectFile(string dependencyName, string filePath, NuGetVersion recommendedVersion, CancellationToken cancellationToken)
     {
-        XDocument doc;
-        using var reader = new StreamReader(filePath, new UTF8Encoding(false), detectEncodingFromByteOrderMarks: true);
-        {
-            doc = await XDocument.LoadAsync(reader, LoadOptions.PreserveWhitespace, cancellationToken);
-        }
+        var doc = await UpdateableXmlDoc.LoadAsync(filePath, cancellationToken);
 
         foreach (var xpath in ProjectFileConstants.PackageElementXPaths)
         {
-            foreach (var element in doc.XPathSelectElements(xpath))
+            foreach (var element in doc.XDocument.XPathSelectElements(xpath))
             {
                 var name = element.Attribute("Include")?.Value;
                 var versionElement = element.Attribute("Version");
@@ -87,15 +80,6 @@ public class Updater(IEnumerable<UpgradeRecommendation> recommendations)
             }
         }
 
-        var writerSettings = new XmlWriterSettings
-        {
-            Async = true,
-            OmitXmlDeclaration = true,
-            NewLineHandling = NewLineHandling.None,
-            Encoding = reader.CurrentEncoding,
-        };
-
-        await using var writer = XmlWriter.Create(filePath, writerSettings);
-        await doc.SaveAsync(writer, cancellationToken);
+        await doc.SaveAsync(cancellationToken);
     }
 }
