@@ -9,6 +9,7 @@ public static class Env
     public static string? AppCommand { get; }
     public static string IgnoreConditionsPath { get; }
     public static string RepositoryName { get; }
+    public static string GitHubToken { get; }
 
     static readonly string? GITHUB_REF;
     static readonly string? GITHUB_REF_NAME;
@@ -26,11 +27,12 @@ public static class Env
     // Should be a JSON file with same structures as webhook events
     static readonly string? GITHUB_EVENT_PATH;
 
-    static readonly string? GITHUB_TOKEN;
     static readonly string? DEFAULT_BRANCH;
 
     static Env()
     {
+        GitHubToken = Environment.GetEnvironmentVariable("GITHUB_TOKEN") ?? throw new InvalidOperationException("Environment variable 'GITHUB_TOKEN' is required.");
+
         if (bool.TryParse(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"), out var isActions) && isActions)
         {
             AppCommand = Environment.GetEnvironmentVariable("APP_COMMAND");
@@ -56,7 +58,6 @@ public static class Env
             GITHUB_ENV = Environment.GetEnvironmentVariable("GITHUB_ENV");
             GITHUB_EVENT_PATH = Environment.GetEnvironmentVariable("GITHUB_EVENT_PATH");
 
-            GITHUB_TOKEN = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
             DEFAULT_BRANCH = Environment.GetEnvironmentVariable("DEFAULT_BRANCH");
         }
         else
@@ -89,7 +90,7 @@ public static class Env
         Console.WriteLine($"{nameof(GITHUB_EVENT_PATH)} = {GITHUB_EVENT_PATH}");
         Console.WriteLine($"{nameof(DEFAULT_BRANCH)} = {DEFAULT_BRANCH}");
 
-        var tokenDisplay = GITHUB_TOKEN is not null ? $"(token of length {GITHUB_TOKEN.Length})" : "null";
-        Console.WriteLine($"{nameof(GITHUB_TOKEN)} = {tokenDisplay}");
+        var tokenDisplay = GitHubToken is not null ? $"(token of length {GitHubToken.Length})" : "null";
+        Console.WriteLine($"{nameof(GitHubToken)} = {tokenDisplay}");
     }
 }

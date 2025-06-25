@@ -20,6 +20,8 @@ jobs:
         with:
           # Get all history for all branches and tags
           fetch-depth: 0
+      - name: Fetch info about pull requests
+        run: '+refs/pull/*/head:refs/remotes/origin/pr/*'
       - name: Setup .NET
         uses: actions/setup-dotnet@v4.1.0
         with:

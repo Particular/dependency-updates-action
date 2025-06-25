@@ -5,6 +5,10 @@ using System.Text;
 using System.Xml.XPath;
 using LibGit2Sharp;
 using NuGet.Versioning;
+using Octokit;
+using Octokit.Internal;
+using Repository = LibGit2Sharp.Repository;
+using Signature = LibGit2Sharp.Signature;
 
 public class Updater(IEnumerable<UpgradeRecommendation> recommendations)
 {
@@ -42,27 +46,65 @@ public class Updater(IEnumerable<UpgradeRecommendation> recommendations)
             Console.WriteLine($"    - {nameof(branch.IsTracking)} = {branch.IsTracking}");
         }
 
+        var github = new GitHubClient(new Connection(
+            new Octokit.ProductHeaderValue("ParticularAutomation"),
+            new Uri("https://api.github.com/"),
+            new InMemoryCredentialStore(new Octokit.Credentials(Env.GitHubToken))));
+
         try
         {
-            foreach (var group in updateGroups)
+            foreach (var group in updateGroups.Take(1))
             {
                 Console.WriteLine($"Update for {group.Key.GroupName}:");
                 var branchName = $"pbot/{group.Key.GroupCodeName}/{UniqueIdFor(group.Value)}";
+                var remoteFriendlyName = $"origin/{branchName}";
 
+                if (repo.Branches.Any(b => remoteFriendlyName.Equals(b.FriendlyName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    Console.WriteLine($" - Skipping: remote branch {remoteFriendlyName} already exists");
+                    continue;
+                }
+
+                Console.WriteLine($" - Creating branch {branchName}");
                 _ = Commands.Checkout(repo, resetBranch);
                 var branch = repo.Branches.Add(branchName, resetBranch);
                 _ = Commands.Checkout(repo, branch);
 
+                Console.WriteLine(" - Applying updates for group");
                 foreach (var update in group.Value)
                 {
                     await ApplyUpdate(update, cancellationToken);
                 }
 
+                Console.WriteLine(" - Committing results");
                 Commands.Stage(repo, "*");
-                var message = GetCommitMessage(group.Key, group.Value);
+                var prTitle = GetPullRequestTitle(group.Key, group.Value);
+                var commitMessage = prTitle;
                 var signature = new Signature(Committer, DateTimeOffset.UtcNow);
-                var commit = repo.Commit(message, signature, signature);
+                var commit = repo.Commit(commitMessage, signature, signature);
                 _ = commit;
+
+                Console.WriteLine(" - Pushing branch to origin");
+                _ = repo.Branches.Update(branch, u =>
+                {
+                    u.Remote = "origin";
+                    u.UpstreamBranch = branch.CanonicalName;
+                });
+
+                var pushOptions = new PushOptions
+                {
+                    CredentialsProvider = (_, _, _) => GitCredentials,
+                    OnPushStatusError = err => throw new Exception($"{err.Reference}: {err.Message}")
+                };
+
+                _ = pushOptions;
+
+                // repo.Network.Push(branch, pushOptions);
+                //
+                // Console.WriteLine(" - Opening PR");
+                // var newPullRequest = new NewPullRequest(prTitle, branchName, resetBranch);
+                // var pr = await github.PullRequest.Create("Particular", Env.RepositoryName, newPullRequest);
+                // Console.WriteLine(" - Opened PR at {pr.HtmlUrl}");
             }
         }
         finally
@@ -98,7 +140,7 @@ public class Updater(IEnumerable<UpgradeRecommendation> recommendations)
         return hashBuilder.ToString();
     }
 
-    string GetCommitMessage(GroupingData group, UpgradeRecommendation[] upgrades)
+    string GetPullRequestTitle(GroupingData group, UpgradeRecommendation[] upgrades)
     {
         if (group.IsGroup)
         {
@@ -161,4 +203,10 @@ public class Updater(IEnumerable<UpgradeRecommendation> recommendations)
 
         await doc.SaveAsync(cancellationToken);
     }
+
+    static readonly LibGit2Sharp.Credentials GitCredentials = new UsernamePasswordCredentials
+    {
+        Username = "PersonalAccessToken",
+        Password = Env.GitHubToken
+    };
 }
