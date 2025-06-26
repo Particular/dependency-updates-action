@@ -44,6 +44,7 @@ public class Updater(IEnumerable<UpgradeRecommendation> recommendations)
             Console.WriteLine($"    - {nameof(branch.IsCurrentRepositoryHead)} = {branch.IsCurrentRepositoryHead}");
             Console.WriteLine($"    - {nameof(branch.IsRemote)} = {branch.IsRemote}");
             Console.WriteLine($"    - {nameof(branch.IsTracking)} = {branch.IsTracking}");
+            Console.WriteLine($"    - {nameof(branch.Tip)}.{nameof(branch.Tip.Sha)} = {branch.Tip.Sha}");
         }
 
         var github = new GitHubClient(new Connection(
@@ -59,9 +60,11 @@ public class Updater(IEnumerable<UpgradeRecommendation> recommendations)
                 var branchName = $"pbot/{group.Key.GroupCodeName}/{UniqueIdFor(group.Value)}";
                 var remoteFriendlyName = $"origin/{branchName}";
 
-                if (repo.Branches.Any(b => remoteFriendlyName.Equals(b.FriendlyName, StringComparison.OrdinalIgnoreCase)))
+                var existingRemoteBranch = repo.Branches.FirstOrDefault(b => remoteFriendlyName.Equals(b.FriendlyName, StringComparison.OrdinalIgnoreCase));
+                if (existingRemoteBranch is not null)
                 {
-                    Console.WriteLine($" - Skipping: remote branch {remoteFriendlyName} already exists");
+                    Console.WriteLine($" - Remote branch {existingRemoteBranch.FriendlyName} already exists");
+                    //var existingPrBranch = repo.Branches.FirstOrDefault(b => existingRemoteBranch.Tip.)
                     continue;
                 }
 
