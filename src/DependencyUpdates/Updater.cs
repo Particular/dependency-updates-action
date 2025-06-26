@@ -54,10 +54,7 @@ public partial class Updater(IEnumerable<UpgradeRecommendation> recommendations)
             Console.WriteLine($"    - {nameof(branch.Tip)}.{nameof(branch.Tip.Sha)} = {branch.Tip.Sha}");
         }
 
-        var github = new GitHubClient(new Connection(
-            new Octokit.ProductHeaderValue("ParticularAutomation"),
-            new Uri("https://api.github.com/"),
-            new InMemoryCredentialStore(new Octokit.Credentials(Env.GitHubToken))));
+        var github = Env.CreateGitHubRestClient();
 
         try
         {
@@ -103,7 +100,7 @@ public partial class Updater(IEnumerable<UpgradeRecommendation> recommendations)
                     Console.WriteLine(" - Committing results");
                     Commands.Stage(repo, "*");
                     var commitMessage = prTitle;
-                    var signature = new Signature(Committer, DateTimeOffset.UtcNow);
+                    var signature = Env.GetCommitSignature();
                     var commit = repo.Commit(commitMessage, signature, signature);
                     _ = commit;
 
@@ -114,19 +111,13 @@ public partial class Updater(IEnumerable<UpgradeRecommendation> recommendations)
                         u.UpstreamBranch = branch.CanonicalName;
                     });
 
-                    var pushOptions = new PushOptions
-                    {
-                        CredentialsProvider = (_, _, _) => GitCredentials,
-                        OnPushStatusError = err => throw new Exception($"{err.Reference}: {err.Message}")
-                    };
-
                     if (DryRun)
                     {
                         Console.WriteLine(" - Dry run: not pushing branch");
                     }
                     else
                     {
-                        repo.Network.Push(branch, pushOptions);
+                        repo.Network.Push(branch, Env.GitPushOptions);
                     }
                 }
 
@@ -151,8 +142,6 @@ public partial class Updater(IEnumerable<UpgradeRecommendation> recommendations)
 
     [GeneratedRegex(@"^origin/pr/(\d+)$", RegexOptions.Compiled)]
     private static partial Regex OriginPrBranchRegex();
-
-    readonly Identity Committer = new("internalautomation[bot]", "85681268+internalautomation[bot]@users.noreply.github.com");
 
     static string UniqueIdFor(UpgradeRecommendation[] upgrades)
     {
@@ -242,10 +231,4 @@ public partial class Updater(IEnumerable<UpgradeRecommendation> recommendations)
 
         await doc.SaveAsync(cancellationToken);
     }
-
-    static readonly LibGit2Sharp.Credentials GitCredentials = new UsernamePasswordCredentials
-    {
-        Username = "PersonalAccessToken",
-        Password = Env.GitHubToken
-    };
 }
