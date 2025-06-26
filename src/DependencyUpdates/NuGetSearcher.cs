@@ -57,24 +57,34 @@ public class NuGetSearcher
                 return new
                 {
                     Source = s.Name,
-                    UpgradeVersions = results.Select(p => p.Identity.Version)
-                        .Where(v => v > highest)
+                    UpgradeVersions = results.Select(p => new PackageVersionData(p))
+                        .Where(p => p.Version >= highest)
                         .ToArray()
                 };
             })
             .WhenAllToArray();
 
         var eligibleVersions = sourceResults.SelectMany(r => r.UpgradeVersions)
-            .Distinct()
-            .OrderBy(v => v)
+            .DistinctBy(v => v.Version)
+            .OrderBy(v => v.Version)
             .ToArray();
 
         var latestVersion = eligibleVersions.LastOrDefault();
 
-        return new NuGetResults(dependency, latestVersion, eligibleVersions);
+        return new NuGetResults(dependency, latestVersion?.Version, eligibleVersions);
     }
 
     record MetadataSource(string Name, PackageMetadataResource Metadata);
 }
 
-public record NuGetResults(Dependency Dependency, NuGetVersion? Latest, NuGetVersion[] PotentialVersions);
+public record NuGetResults(Dependency Dependency, NuGetVersion? Latest, PackageVersionData[] PotentialPackageVersions)
+{
+    public NuGetVersion[] PotentialVersions { get; } = PotentialPackageVersions.Select(v => v.Version).ToArray();
+}
+
+public class PackageVersionData(IPackageSearchMetadata metadata)
+{
+    public NuGetVersion Version { get; } = metadata.Identity.Version;
+    public string? ProjectUrl { get; } = metadata.ProjectUrl?.ToString();
+    public IPackageSearchMetadata Metadata { get; } = metadata;
+}

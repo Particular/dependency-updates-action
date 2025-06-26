@@ -38,28 +38,26 @@ public class UpgradeLogic
             .First();
 
         // If projects disagree, at least each should be upgraded to highest
-        var upgradeTo = baseline;
+        var upgradeTo = input.PotentialPackageVersions.First(p => p.Version == baseline);
         var ignoreRulesForDependency = ignores.GetValueOrDefault(input.Dependency.Name) ?? [];
 
-        foreach (var possible in input.PotentialVersions)
+        foreach (var possible in input.PotentialPackageVersions)
         {
-            if (possible.IsPrerelease && !upgradeTo.IsPrerelease)
+            if (possible.Version.IsPrerelease && !upgradeTo.Version.IsPrerelease)
             {
                 // We won't upgrade from an RTM to a prerelease, only prerelease-to-prerelease
                 continue;
             }
 
-            if (ignoreRulesForDependency.Any(rule => rule.IsMatch(possible)))
+            if (ignoreRulesForDependency.Any(rule => rule.IsMatch(possible.Version)))
             {
                 continue;
             }
 
-            // TODO: More logic will be needed for "ignore this (dependency, minor version, major verson)
-
             upgradeTo = possible;
         }
 
-        var recommended = upgradeTo != baseline ? upgradeTo : null;
+        var recommended = upgradeTo.Version != baseline ? upgradeTo : null;
 
         return new UpgradeRecommendation(input.Dependency, recommended);
     }
@@ -122,20 +120,17 @@ public partial class IgnoreCondition
     private static partial Regex VersionRegex();
 }
 
-public record UpgradeRecommendation(Dependency Dependency, NuGetVersion? RecommendedVersion)
+public class UpgradeRecommendation
 {
-    public override string ToString()
-    {
-        if (RecommendedVersion is null)
-        {
-            return $"{Dependency.Name}: no upgrade required";
-        }
+    public Dependency Dependency { get; }
+    public PackageVersionData? RecommendedVersion { get; }
+    public string ExistingVersionsString { get; }
 
-        return $"{Dependency.Name}: upgrade {ExistingVersionsString()} to {RecommendedVersion}";
-    }
-
-    string ExistingVersionsString()
+    public UpgradeRecommendation(Dependency dependency, PackageVersionData? recommendedVersion)
     {
+        Dependency = dependency;
+        RecommendedVersion = recommendedVersion;
+
         var existingVersions = Dependency.Locations
             .Select(v => v.Version)
             .Distinct()
@@ -145,10 +140,21 @@ public record UpgradeRecommendation(Dependency Dependency, NuGetVersion? Recomme
 
         if (existingVersions.Length == 1)
         {
-            return existingVersions[0].ToString();
+            ExistingVersionsString = existingVersions[0].ToString();
         }
-
-        return $"({string.Join(", ", existingVersions)})";
+        else
+        {
+            ExistingVersionsString = $"({string.Join(", ", existingVersions)})";
+        }
     }
 
+    public override string ToString()
+    {
+        if (RecommendedVersion is null)
+        {
+            return $"{Dependency.Name}: no upgrade required";
+        }
+
+        return $"{Dependency.Name}: upgrade {ExistingVersionsString} to {RecommendedVersion}";
+    }
 }

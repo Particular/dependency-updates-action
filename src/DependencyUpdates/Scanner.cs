@@ -48,7 +48,11 @@ public class Scanner(string rootPath)
     record WorkingDependency(string Name, string FilePath, UpdateType Type, NuGetVersion Version);
 }
 
-public record Dependency(string Name, DependencyLocation[] Locations);
+public record Dependency(string Name, DependencyLocation[] Locations)
+{
+    public NuGetVersion LowestVersion => Locations.Select(loc => loc.Version).Min()!;
+    public NuGetVersion HighestVersion => Locations.Select(loc => loc.Version).Max()!;
+}
 
 public record DependencyLocation(string FilePath, UpdateType Type, NuGetVersion Version);
 

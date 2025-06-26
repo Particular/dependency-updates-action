@@ -7,13 +7,11 @@ using System.Xml.XPath;
 using LibGit2Sharp;
 using NuGet.Versioning;
 using Octokit;
-using Octokit.Internal;
 using Repository = LibGit2Sharp.Repository;
-using Signature = LibGit2Sharp.Signature;
 
 public partial class Updater(IEnumerable<UpgradeRecommendation> recommendations)
 {
-#if DEBUG
+#if !DEBUG
     public bool DryRun { get; set; } = true;
 #else
     public bool DryRun { get; set; } = false;
@@ -58,12 +56,12 @@ public partial class Updater(IEnumerable<UpgradeRecommendation> recommendations)
 
         try
         {
-            foreach (var group in updateGroups)
+            foreach (var group in updateGroups.Take(2))
             {
                 Console.WriteLine($"Update for {group.Key.GroupName}:");
                 var branchName = $"pbot/{group.Key.GroupCodeName}/{UniqueIdFor(group.Value)}";
                 var remoteFriendlyName = $"origin/{branchName}";
-                var prTitle = GetPullRequestTitle(group.Key, group.Value);
+                var prInfo = await PullRequestInfo.Create(github, group.Key, group.Value, cancellationToken);
 
                 var existingRemoteBranch = repo.Branches.FirstOrDefault(b => remoteFriendlyName.Equals(b.FriendlyName, StringComparison.OrdinalIgnoreCase));
                 if (existingRemoteBranch is not null)
@@ -99,7 +97,7 @@ public partial class Updater(IEnumerable<UpgradeRecommendation> recommendations)
 
                     Console.WriteLine(" - Committing results");
                     Commands.Stage(repo, "*");
-                    var commitMessage = prTitle;
+                    var commitMessage = prInfo.CommitMessage;
                     var signature = Env.GetCommitSignature();
                     var commit = repo.Commit(commitMessage, signature, signature);
                     _ = commit;
@@ -122,7 +120,11 @@ public partial class Updater(IEnumerable<UpgradeRecommendation> recommendations)
                 }
 
                 Console.WriteLine(" - Opening PR");
-                var newPullRequest = new NewPullRequest(prTitle, branchName, resetBranch);
+                var newPullRequest = new NewPullRequest(prInfo.Title, branchName, resetBranch)
+                {
+                    Body = prInfo.Body
+                };
+
                 if (DryRun)
                 {
                     Console.WriteLine(" - Dry run: not opening PR");
@@ -147,7 +149,7 @@ public partial class Updater(IEnumerable<UpgradeRecommendation> recommendations)
     {
         if (upgrades.Length == 1)
         {
-            return upgrades[0].RecommendedVersion!.ToString();
+            return upgrades[0].RecommendedVersion!.Version.ToString();
         }
 
         var asStrings = upgrades
@@ -168,42 +170,18 @@ public partial class Updater(IEnumerable<UpgradeRecommendation> recommendations)
         return hashBuilder.ToString();
     }
 
-    string GetPullRequestTitle(GroupingData group, UpgradeRecommendation[] upgrades)
-    {
-        if (group.IsGroup)
-        {
-            return $"Bump {group.TitleName} with {upgrades.Length} updates";
-        }
-
-        var existingVersions = upgrades
-            .SelectMany(u => u.Dependency.Locations)
-            .Select(loc => loc.Version)
-            .Distinct()
-            .OrderBy(v => v)
-            .Select(v => v.ToString())
-            .ToArray();
-
-        if (existingVersions.Length == 1)
-        {
-            return $"Bump {group.TitleName} from {existingVersions[0]} to {upgrades[0].RecommendedVersion}";
-        }
-
-        var combinedExistingVersions = string.Join(", ", existingVersions);
-        return $"Bump {group.TitleName} from ({combinedExistingVersions}) to {upgrades[0].RecommendedVersion}";
-    }
-
     async Task ApplyUpdate(UpgradeRecommendation update, CancellationToken cancellationToken)
     {
         foreach (var fileUpdate in update.Dependency.Locations)
         {
-            if (fileUpdate.Version == update.RecommendedVersion)
+            if (fileUpdate.Version == update.RecommendedVersion?.Version)
             {
                 continue;
             }
 
             if (fileUpdate.Type == UpdateType.ProjectFile)
             {
-                await UpdateProjectFile(update.Dependency.Name, fileUpdate.FilePath, update.RecommendedVersion!, cancellationToken);
+                await UpdateProjectFile(update.Dependency.Name, fileUpdate.FilePath, update.RecommendedVersion!.Version, cancellationToken);
             }
             else
             {
