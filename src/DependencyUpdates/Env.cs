@@ -1,11 +1,21 @@
 namespace DependencyUpdates;
 
+using System.Reflection;
+using LibGit2Sharp;
+using Octokit;
+using Octokit.Internal;
+using Signature = LibGit2Sharp.Signature;
+
 public static class Env
 {
     static readonly string? RUNNER_WORKSPACE;
     public static string RepoRootPath { get; }
     public static string? AppCommand { get; }
+    public static string IgnoreConditionsPath { get; }
+    public static string RepositoryName { get; }
+    public static PushOptions GitPushOptions { get; }
 
+    static readonly string GITHUB_TOKEN;
     static readonly string? GITHUB_REF;
     static readonly string? GITHUB_REF_NAME;
     static readonly string? GITHUB_REF_TYPE;
@@ -22,22 +32,26 @@ public static class Env
     // Should be a JSON file with same structures as webhook events
     static readonly string? GITHUB_EVENT_PATH;
 
-    static readonly string? GITHUB_TOKEN;
     static readonly string? DEFAULT_BRANCH;
 
     static Env()
     {
+        GITHUB_TOKEN = Environment.GetEnvironmentVariable("GITHUB_TOKEN") ?? throw new InvalidOperationException("Environment variable 'GITHUB_TOKEN' is required.");
+
         if (bool.TryParse(Environment.GetEnvironmentVariable("GITHUB_ACTIONS"), out var isActions) && isActions)
         {
             AppCommand = Environment.GetEnvironmentVariable("APP_COMMAND");
             RUNNER_WORKSPACE = Environment.GetEnvironmentVariable("RUNNER_WORKSPACE");
             RepoRootPath = Environment.GetEnvironmentVariable("GITHUB_WORKSPACE")!;
+            IgnoreConditionsPath = Environment.GetEnvironmentVariable("IGNORE_CONDITIONS_PATH")!;
 
             GITHUB_REF = Environment.GetEnvironmentVariable("GITHUB_REF");
             GITHUB_REF_NAME = Environment.GetEnvironmentVariable("GITHUB_REF_NAME");
             GITHUB_REF_TYPE = Environment.GetEnvironmentVariable("GITHUB_REF_TYPE");
             GITHUB_REPOSITORY_OWNER = Environment.GetEnvironmentVariable("GITHUB_REPOSITORY_OWNER");
             GITHUB_REPOSITORY = Environment.GetEnvironmentVariable("GITHUB_REPOSITORY");
+
+            RepositoryName = GITHUB_REPOSITORY!.Split('/').Last();
 
             _ = long.TryParse(Environment.GetEnvironmentVariable("GITHUB_REPOSITORY_OWNER_ID"), out GITHUB_REPOSITORY_OWNER_ID);
             _ = long.TryParse(Environment.GetEnvironmentVariable("GITHUB_REPOSITORY_ID"), out GITHUB_REPOSITORY_ID);
@@ -49,19 +63,33 @@ public static class Env
             GITHUB_ENV = Environment.GetEnvironmentVariable("GITHUB_ENV");
             GITHUB_EVENT_PATH = Environment.GetEnvironmentVariable("GITHUB_EVENT_PATH");
 
-            GITHUB_TOKEN = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
             DEFAULT_BRANCH = Environment.GetEnvironmentVariable("DEFAULT_BRANCH");
         }
         else
         {
             RepoRootPath = "/Users/david/Projects/Website.Backend";
+            RepositoryName = Path.GetFileName(RepoRootPath);
+            IgnoreConditionsPath = Path.GetFullPath(Path.Combine(Assembly.GetExecutingAssembly().Location, "..", "..", "..", "..", "..", "..", "ignore-conditions"));
         }
+
+        var gitCredentials = new UsernamePasswordCredentials
+        {
+            Username = "PersonalAccessToken",
+            Password = GITHUB_TOKEN
+        };
+
+        GitPushOptions = new PushOptions
+        {
+            CredentialsProvider = (_, _, _) => gitCredentials,
+            OnPushStatusError = err => throw new Exception($"{err.Reference}: {err.Message}")
+        };
     }
 
     public static void OutputEnvironment()
     {
         Console.WriteLine($"{nameof(AppCommand)} = {AppCommand}");
         Console.WriteLine($"{nameof(RepoRootPath)} = {RepoRootPath}");
+        Console.WriteLine($"{nameof(IgnoreConditionsPath)} = {IgnoreConditionsPath}");
         Console.WriteLine($"{nameof(RUNNER_WORKSPACE)} = {RUNNER_WORKSPACE}");
         Console.WriteLine($"{nameof(GITHUB_REF)} = {GITHUB_REF}");
         Console.WriteLine($"{nameof(GITHUB_REF_NAME)} = {GITHUB_REF_NAME}");
@@ -82,4 +110,17 @@ public static class Env
         var tokenDisplay = GITHUB_TOKEN is not null ? $"(token of length {GITHUB_TOKEN.Length})" : "null";
         Console.WriteLine($"{nameof(GITHUB_TOKEN)} = {tokenDisplay}");
     }
+
+    public static Signature GetCommitSignature(DateTimeOffset? specificTime = null)
+    {
+        return new Signature(CommitIdentity, specificTime ?? DateTimeOffset.UtcNow);
+    }
+
+    static readonly Identity CommitIdentity = new("internalautomation[bot]", "85681268+internalautomation[bot]@users.noreply.github.com");
+
+    public static GitHubClient CreateGitHubRestClient() =>
+        new(new Connection(
+            new Octokit.ProductHeaderValue("ParticularAutomation"),
+            new Uri("https://api.github.com/"),
+            new InMemoryCredentialStore(new Octokit.Credentials(GITHUB_TOKEN))));
 }
