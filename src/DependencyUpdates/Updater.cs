@@ -2,16 +2,15 @@ namespace DependencyUpdates;
 
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Xml.XPath;
 using LibGit2Sharp;
 using NuGet.Versioning;
 using Octokit;
 using Repository = LibGit2Sharp.Repository;
 
-public partial class Updater(IEnumerable<UpgradeRecommendation> recommendations)
+public class Updater(IEnumerable<UpgradeRecommendation> recommendations)
 {
-#if !DEBUG
+#if DEBUG
     public bool DryRun { get; set; } = true;
 #else
     public bool DryRun { get; set; } = false;
@@ -67,19 +66,20 @@ public partial class Updater(IEnumerable<UpgradeRecommendation> recommendations)
                 if (existingRemoteBranch is not null)
                 {
                     Console.WriteLine($" - Remote branch {existingRemoteBranch.FriendlyName} already exists");
-                    var branchRegex = OriginPrBranchRegex();
-                    var existingPrBranch = repo.Branches.FirstOrDefault(b => existingRemoteBranch.Tip.Sha == b.Tip.Sha && branchRegex.IsMatch(b.FriendlyName));
-                    if (existingPrBranch is not null)
+
+                    var existingPullRequest = (await github.PullRequest.GetAllForRepository("Particular", Env.RepositoryName, new PullRequestRequest
                     {
-                        var match = branchRegex.Match(existingPrBranch.FriendlyName);
-                        var prNumber = match.Groups[1].Value;
-                        Console.WriteLine($" - PR branch {existingPrBranch.FriendlyName} already exists. PR should already exist at https://github.com/Particular/{Env.RepositoryName}/pull/{prNumber}");
+                        State = ItemStateFilter.All,
+                        Head = branchName
+                    })).FirstOrDefault();
+
+                    if (existingPullRequest is not null)
+                    {
+                        Console.WriteLine($" - Pull request {existingPullRequest.HtmlUrl} already exists.");
                         continue;
                     }
-                    else
-                    {
-                        Console.WriteLine(" - No PR branch detected");
-                    }
+
+                    Console.WriteLine(" - No PR branch detected");
                 }
                 else
                 {
@@ -141,9 +141,6 @@ public partial class Updater(IEnumerable<UpgradeRecommendation> recommendations)
             _ = Commands.Checkout(repo, resetBranch);
         }
     }
-
-    [GeneratedRegex(@"^origin/pr/(\d+)$", RegexOptions.Compiled)]
-    private static partial Regex OriginPrBranchRegex();
 
     static string UniqueIdFor(UpgradeRecommendation[] upgrades)
     {
