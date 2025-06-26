@@ -2,6 +2,7 @@ namespace DependencyUpdates;
 
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Xml.XPath;
 using LibGit2Sharp;
 using NuGet.Versioning;
@@ -10,8 +11,14 @@ using Octokit.Internal;
 using Repository = LibGit2Sharp.Repository;
 using Signature = LibGit2Sharp.Signature;
 
-public class Updater(IEnumerable<UpgradeRecommendation> recommendations)
+public partial class Updater(IEnumerable<UpgradeRecommendation> recommendations)
 {
+#if DEBUG
+    public bool DryRun { get; set; } = true;
+#else
+    public bool DryRun { get; set; } = false;
+#endif
+
     public async Task Run(CancellationToken cancellationToken = default)
     {
         Console.WriteLine("Begin Updater");
@@ -54,60 +61,86 @@ public class Updater(IEnumerable<UpgradeRecommendation> recommendations)
 
         try
         {
-            foreach (var group in updateGroups.Take(1))
+            foreach (var group in updateGroups)
             {
                 Console.WriteLine($"Update for {group.Key.GroupName}:");
                 var branchName = $"pbot/{group.Key.GroupCodeName}/{UniqueIdFor(group.Value)}";
                 var remoteFriendlyName = $"origin/{branchName}";
+                var prTitle = GetPullRequestTitle(group.Key, group.Value);
 
                 var existingRemoteBranch = repo.Branches.FirstOrDefault(b => remoteFriendlyName.Equals(b.FriendlyName, StringComparison.OrdinalIgnoreCase));
                 if (existingRemoteBranch is not null)
                 {
                     Console.WriteLine($" - Remote branch {existingRemoteBranch.FriendlyName} already exists");
-                    //var existingPrBranch = repo.Branches.FirstOrDefault(b => existingRemoteBranch.Tip.)
-                    continue;
+                    var branchRegex = OriginPrBranchRegex();
+                    var existingPrBranch = repo.Branches.FirstOrDefault(b => existingRemoteBranch.Tip.Sha == b.Tip.Sha && branchRegex.IsMatch(b.FriendlyName));
+                    if (existingPrBranch is not null)
+                    {
+                        var match = branchRegex.Match(existingPrBranch.FriendlyName);
+                        var prNumber = match.Groups[1].Value;
+                        Console.WriteLine($" - PR branch {existingPrBranch.FriendlyName} already exists. PR should already exist at https://github.com/Particular/{Env.RepositoryName}/pull/{prNumber}");
+                        continue;
+                    }
+                    else
+                    {
+                        Console.WriteLine(" - No PR branch detected");
+                    }
+                }
+                else
+                {
+                    // Need to make the edits and push the branch
+                    Console.WriteLine($" - Creating branch {branchName}");
+                    _ = Commands.Checkout(repo, resetBranch);
+                    var branch = repo.Branches.Add(branchName, resetBranch);
+                    _ = Commands.Checkout(repo, branch);
+
+                    Console.WriteLine(" - Applying updates for group");
+                    foreach (var update in group.Value)
+                    {
+                        await ApplyUpdate(update, cancellationToken);
+                    }
+
+                    Console.WriteLine(" - Committing results");
+                    Commands.Stage(repo, "*");
+                    var commitMessage = prTitle;
+                    var signature = new Signature(Committer, DateTimeOffset.UtcNow);
+                    var commit = repo.Commit(commitMessage, signature, signature);
+                    _ = commit;
+
+                    Console.WriteLine(" - Pushing branch to origin");
+                    _ = repo.Branches.Update(branch, u =>
+                    {
+                        u.Remote = "origin";
+                        u.UpstreamBranch = branch.CanonicalName;
+                    });
+
+                    var pushOptions = new PushOptions
+                    {
+                        CredentialsProvider = (_, _, _) => GitCredentials,
+                        OnPushStatusError = err => throw new Exception($"{err.Reference}: {err.Message}")
+                    };
+
+                    if (DryRun)
+                    {
+                        Console.WriteLine(" - Dry run: not pushing branch");
+                    }
+                    else
+                    {
+                        repo.Network.Push(branch, pushOptions);
+                    }
                 }
 
-                Console.WriteLine($" - Creating branch {branchName}");
-                _ = Commands.Checkout(repo, resetBranch);
-                var branch = repo.Branches.Add(branchName, resetBranch);
-                _ = Commands.Checkout(repo, branch);
-
-                Console.WriteLine(" - Applying updates for group");
-                foreach (var update in group.Value)
+                Console.WriteLine(" - Opening PR");
+                var newPullRequest = new NewPullRequest(prTitle, branchName, resetBranch);
+                if (DryRun)
                 {
-                    await ApplyUpdate(update, cancellationToken);
+                    Console.WriteLine(" - Dry run: not opening PR");
                 }
-
-                Console.WriteLine(" - Committing results");
-                Commands.Stage(repo, "*");
-                var prTitle = GetPullRequestTitle(group.Key, group.Value);
-                var commitMessage = prTitle;
-                var signature = new Signature(Committer, DateTimeOffset.UtcNow);
-                var commit = repo.Commit(commitMessage, signature, signature);
-                _ = commit;
-
-                Console.WriteLine(" - Pushing branch to origin");
-                _ = repo.Branches.Update(branch, u =>
+                else
                 {
-                    u.Remote = "origin";
-                    u.UpstreamBranch = branch.CanonicalName;
-                });
-
-                var pushOptions = new PushOptions
-                {
-                    CredentialsProvider = (_, _, _) => GitCredentials,
-                    OnPushStatusError = err => throw new Exception($"{err.Reference}: {err.Message}")
-                };
-
-                _ = pushOptions;
-
-                // repo.Network.Push(branch, pushOptions);
-                //
-                // Console.WriteLine(" - Opening PR");
-                // var newPullRequest = new NewPullRequest(prTitle, branchName, resetBranch);
-                // var pr = await github.PullRequest.Create("Particular", Env.RepositoryName, newPullRequest);
-                // Console.WriteLine(" - Opened PR at {pr.HtmlUrl}");
+                    var pr = await github.PullRequest.Create("Particular", Env.RepositoryName, newPullRequest);
+                    Console.WriteLine($" - Opened PR at {pr.HtmlUrl}");
+                }
             }
         }
         finally
@@ -115,6 +148,9 @@ public class Updater(IEnumerable<UpgradeRecommendation> recommendations)
             _ = Commands.Checkout(repo, resetBranch);
         }
     }
+
+    [GeneratedRegex(@"^origin/pr/(\d+)$", RegexOptions.Compiled)]
+    private static partial Regex OriginPrBranchRegex();
 
     readonly Identity Committer = new("internalautomation[bot]", "85681268+internalautomation[bot]@users.noreply.github.com");
 
