@@ -3,13 +3,15 @@ Handle .NET versioning concerns for Particular Software component packages
 
 ## How it works
 
+A wrapper action, [update-dependencies.yml](https://github.com/Particular/DependencyUpdatesTest/blob/main/.github/workflows/update-dependencies.yml), is synced across repositories by [RepoStandards](https://github.com/Particular/RepoStandards). 
+
 ```mermaid
 ---
-title: Overview
+title: Give repos access to the action
 ---
 
 flowchart TD
-    repo-sync@{ shape: process }
+    repo-sync@{ shape: process, label: update-dependencies.yml }
     
     r1@{ shape: bow-rect, label: Repo 1 }
     r2@{ shape: bow-rect, label: Repo 2 }
@@ -21,50 +23,54 @@ flowchart TD
 
     repo-sync --> r1
     repo-sync --> r2
-    repo-sync -- "Sync update wrapper action across repos" --> rellip
+    repo-sync --> rellip
     repo-sync --> rn-1
     repo-sync --> rn
+```
 
-    
-    r1 --- input
-    r2 --- input
-    rellip -- "A repo invokes the wrapper action, which references the Dependency Updates Action" --- input
-    rn-1 --- input
-    rn --- input
+This allows any synced repo to invoke the [shared dependency updates workflow](https://github.com/Particular/dependency-updates-action/blob/main/.github/workflows/run-dependency-updates.yml).
 
-    subgraph Dependency Updates Action
+```mermaid
+---
+title: Repository runs workflow
+---
+flowchart LR
+    ud-invoked(Repository invokes<br/>update-dependencies.yml)
+    rdu-invoked[Shared workflow<br />run-dependency-updates.yml<br/>invoked]
+    a-invoked[action.yml]
+    u-command[/Sets APP_COMMAND environment variable/]
+    build-run[Build/Run DependencyUpdates.csproj]
+    read-cmd[\Read APP_COMMAND environment variable\]
+    run-cmd["`**AVAILABLE COMMANDS**<br/>
+        update`"]
 
-        input@{ shape: in-out, label: Command parameter passed }
-        action-invoke@{ shape: event, label: Action invoked }
-        find-deps@{ shape: process, label: Find dependencies in project }
-
-        input --> action-invoke
-
-        action-invoke --> find-deps --> check-dep
-
-        subgraph Loop through dependencies
-
-            check-dep@{ shape: process, label: Check NuGet for updates }
-            has-update@{ shape: decision, label: Update Available? }
-            checkout@{ shape: process, label: Checkout target branch }
-            create-branch@{ shape: process, label: Create PR branch }
-            reset-branch@{ shape: process, label: Reset to target branch }
-            update@{ shape: process, label: Apply package update }
-            commit@{ shape: process, label: Commit and push changes }
-            open-pr@{ shape: process, label: Open pull request }
-            dep-done@{ shape: stop }
-
-
-            check-dep --> has-update
-            has-update -- "No" --> dep-done
-            has-update -- "Yes" --> checkout
-            checkout --> create-branch --> update --> commit --> open-pr --> reset-branch
-            reset-branch --> dep-done
-
-
-            dep-done -- "Check next dependency" --> check-dep
-
-        end
-
+    ud-invoked -- "references" --> rdu-invoked
+    rdu-invoked --> u-command  -- "runs the action" --> a-invoked
+    a-invoked --> build-run
+    build-run --> read-cmd --> run-cmd
+    subgraph Run command
+        run-cmd
     end
+```
+
+```mermaid
+---
+title: Repository runs workflow
+---
+sequenceDiagram
+    participant R as Target Repository
+    participant UD as update-dependencies.yml
+    participant RDU as run-dependency-updates.yml
+    participant A as action.yml
+    participant DU as DependencyUpdates.csproj
+
+    activate R
+    R->>UD: User or trigger invokes
+    UD->>RDU: References shared workflow on DependencyUpdateAction repo
+    RDU->>A: Sets APP_COMMAND environment variable and runs action
+    Note left of A: AVAILABLE COMMANDS<br/><br/>update
+    A->>DU: Builds and runs with 'dotnet run'
+    DU->>DU: Reads APP_COMMAND environment variable and runs command
+    DU->>R: Act on target repository (open PRs, etc...)
+    deactivate R
 ```
